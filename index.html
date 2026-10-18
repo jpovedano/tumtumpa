@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DrumScore — Interactive Drum Practice Player</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#12141a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥁</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <!-- AlphaTab library (local offline copy, falls back to CDN if ever needed) -->
+  <script src="lib/alphaTab.js"></script>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">🥁</div>
+      <h1>DrumScore</h1>
+      <span class="badge">Practice Player</span>
+    </div>
+
+    <div class="score-selection">
+      <select id="scoreSelect" class="score-dropdown" title="Choose drum exercise or groove">
+        <option value="./scores/basic-rock-beat.musicxml">1. Basic 4/4 Rock Beat (110 BPM)</option>
+        <option value="./scores/four-on-the-floor.musicxml">2. Four-on-the-Floor Disco (124 BPM)</option>
+        <option value="./scores/paradiddle-exercise.musicxml">3. Paradiddle Rudiments (95 BPM)</option>
+        <option value="./scores/funky-syncopation.musicxml">4. Syncopated Funk Groove (102 BPM)</option>
+      </select>
+
+      <label for="fileInput" class="btn-upload" title="Open any MusicXML / MXL / Guitar Pro score">
+        <span>📂 Open MusicXML</span>
+        <input type="file" id="fileInput" accept=".musicxml,.xml,.mxl,.gp,.gp3,.gp4,.gp5,.gpx" style="display: none;">
+      </label>
+    </div>
+  </header>
+
+  <!-- Workspace Area -->
+  <main class="workspace" id="dropArea">
+    <!-- Drag & Drop Overlay -->
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-zone-icon">📥</div>
+      <h3>Drop MusicXML or MXL file here</h3>
+      <p>Supports .musicxml, .xml, .mxl and Guitar Pro files</p>
+    </div>
+
+    <!-- Loading Spinner Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loadingText">Loading Drum Score & SoundFont...</div>
+    </div>
+
+    <!-- Scrollable Viewport for Score Sheet -->
+    <div class="score-viewport" id="alphaTabViewport">
+      <div class="score-container" id="alphaTabWrapper">
+        <!-- alphaTab renders score SVG here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Sticky Practice Control Bar -->
+  <footer class="controls-bar">
+    <div class="controls-row">
+      <!-- Transport -->
+      <div class="transport-group">
+        <button id="btnStop" class="btn-ctrl" title="Stop and rewind to start (Esc)">
+          <span>⏮ Stop</span>
+        </button>
+        <button id="btnPlayPause" class="btn-ctrl btn-primary-play" title="Play / Pause (Spacebar)" disabled>
+          <span id="playIcon">▶ Play</span>
+        </button>
+      </div>
+
+      <!-- Practice Enhancements: Metronome, Count-In, Looper -->
+      <div class="practice-group">
+        <button id="btnCountIn" class="toggle-btn" title="1-Bar Count-in Click before playing">
+          <span>🔔 Count-In</span>
+        </button>
+        <button id="btnMetronome" class="toggle-btn" title="Toggle Click Track / Metronome (M)">
+          <span>⏱ Metronome</span>
+        </button>
+        <button id="btnLoop" class="toggle-btn active" title="Loop current score or selection (L)">
+          <span>🔁 Loop</span>
+        </button>
+      </div>
+
+      <!-- Tempo Control & Scaling -->
+      <div class="tempo-section">
+        <div class="tempo-label" id="tempoDisplay">100% · --- BPM</div>
+        <div class="tempo-controls">
+          <input type="range" id="speedSlider" class="speed-slider" min="0.4" max="1.6" step="0.05" value="1.0" title="Adjust playback speed">
+          <div class="preset-btns">
+            <button class="btn-preset" data-speed="0.5">50%</button>
+            <button class="btn-preset" data-speed="0.75">75%</button>
+            <button class="btn-preset active" data-speed="1.0">100%</button>
+            <button class="btn-preset" data-speed="1.25">125%</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- View and Volume Tools -->
+      <div class="tool-group">
+        <button id="btnZoomOut" class="btn-ctrl" title="Zoom Out score">−</button>
+        <span id="zoomLevel" style="font-size:0.8rem; font-weight:600; min-width:36px; text-align:center;">100%</span>
+        <button id="btnZoomIn" class="btn-ctrl" title="Zoom In score">+</button>
+
+        <div class="volume-control">
+          <span>🔊</span>
+          <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="0.9" title="Master Volume">
+        </div>
+      </div>
+    </div>
+
+    <!-- Status & Info Row -->
+    <div class="info-row">
+      <div class="track-info">
+        <span id="scoreTitleDisplay">Basic 4/4 Rock Beat</span>
+        <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+        <span id="barDisplay" style="color: var(--accent-cyan);">Bar 1</span>
+      </div>
+
+      <div class="shortcuts-hint">
+        <span><span class="kbd">Space</span> Play/Pause</span>
+        <span><span class="kbd">M</span> Click</span>
+        <span><span class="kbd">L</span> Loop</span>
+        <span><span class="kbd">↑ / ↓</span> Tempo</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
