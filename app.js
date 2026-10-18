@@ -47,7 +47,7 @@ const isFileProtocol = window.location.protocol === 'file:';
 // Initialize AlphaTab
 const settings = {
   core: {
-    file: isFileProtocol ? null : scoreSelect.value,
+    file: null,
     fontDirectory: './lib/font/',
     useWorkers: !isFileProtocol,
     tracks: 'all',
@@ -117,6 +117,212 @@ function updatePlaybackAvailability() {
 
 function hideLoadingOverlay() {
   loadingOverlay.classList.add('hidden');
+}
+
+function syncScoreBackgroundHeight() {
+  const surface = wrapper.querySelector('.at-surface');
+  if (!surface) {
+    wrapper.style.minHeight = '';
+    return;
+  }
+
+  let maxBottom = 0;
+  Array.from(surface.children).forEach((child) => {
+    if (!(child instanceof HTMLElement) || child.classList.contains('at-cursors')) {
+      return;
+    }
+
+    const childBottom = child.offsetTop + child.offsetHeight;
+    if (childBottom > maxBottom) {
+      maxBottom = childBottom;
+    }
+  });
+
+  const computedStyle = window.getComputedStyle(wrapper);
+  const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
+  const minHeight = maxBottom > 0 ? maxBottom + paddingTop + paddingBottom : 0;
+
+  wrapper.style.minHeight = minHeight > 0 ? `${Math.ceil(minHeight)}px` : '';
+}
+
+const percussionMidiByName = new Map([
+  ['bass drum 2', 35],
+  ['acoustic bass drum', 35],
+  ['bass drum', 36],
+  ['bass drum 1', 36],
+  ['side stick', 37],
+  ['cross-stick', 37],
+  ['cross stick', 37],
+  ['snare', 38],
+  ['acoustic snare', 38],
+  ['electric snare', 40],
+  ['floor tom', 41],
+  ['low floor tom', 41],
+  ['closed hi-hat', 42],
+  ['closed hi hat', 42],
+  ['high floor tom', 43],
+  ['pedal hi-hat', 44],
+  ['pedal hi hat', 44],
+  ['low tom', 45],
+  ['open hi-hat', 46],
+  ['open hi hat', 46],
+  ['mid tom', 47],
+  ['mid tom 1', 47],
+  ['mid tom 2', 47],
+  ['high tom', 50],
+  ['crash cymbal', 49],
+  ['crash cymbal 1', 49],
+  ['ride cymbal', 51],
+  ['ride cymbal 1', 51],
+  ['china cymbal', 52],
+  ['ride bell', 53],
+  ['splash cymbal', 55],
+  ['crash cymbal 2', 57]
+]);
+
+const xmlParser = new DOMParser();
+const xmlSerializer = new XMLSerializer();
+const textDecoder = new TextDecoder();
+const textEncoder = new TextEncoder();
+
+function normalizeInstrumentName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function getExpectedMidiUnpitched(instrumentName) {
+  const normalizedName = normalizeInstrumentName(instrumentName);
+  if (percussionMidiByName.has(normalizedName)) {
+    return percussionMidiByName.get(normalizedName);
+  }
+
+  for (const [knownName, midiNote] of percussionMidiByName.entries()) {
+    if (normalizedName.includes(knownName)) {
+      return midiNote;
+    }
+  }
+
+  return null;
+}
+
+function looksLikeMusicXml(text) {
+  return /^\s*(<\?xml|<!DOCTYPE\s+score-partwise|<score-partwise|<score-timewise)/i.test(text);
+}
+
+function normalizeMusicXmlText(xmlText) {
+  if (!looksLikeMusicXml(xmlText)) {
+    return { data: xmlText, changed: false };
+  }
+
+  const parsed = xmlParser.parseFromString(xmlText, 'application/xml');
+  if (parsed.querySelector('parsererror')) {
+    return { data: xmlText, changed: false };
+  }
+
+  const scorePartElements = parsed.querySelectorAll('score-part');
+  if (!scorePartElements.length) {
+    return { data: xmlText, changed: false };
+  }
+
+  let changed = false;
+  scorePartElements.forEach((scorePart) => {
+    const instrumentNamesById = new Map();
+    scorePart.querySelectorAll('score-instrument').forEach((instrument) => {
+      const instrumentId = instrument.getAttribute('id');
+      const instrumentName = instrument.querySelector('instrument-name')?.textContent?.trim();
+      if (instrumentId && instrumentName) {
+        instrumentNamesById.set(instrumentId, instrumentName);
+      }
+    });
+
+    scorePart.querySelectorAll('midi-instrument').forEach((midiInstrument) => {
+      const instrumentId = midiInstrument.getAttribute('id');
+      const instrumentName = instrumentId ? instrumentNamesById.get(instrumentId) : null;
+      if (!instrumentName) {
+        return;
+      }
+
+      const expectedMidiUnpitched = getExpectedMidiUnpitched(instrumentName);
+      const midiUnpitched = midiInstrument.querySelector('midi-unpitched');
+      if (expectedMidiUnpitched === null || !midiUnpitched) {
+        return;
+      }
+
+      const currentValue = Number.parseInt(midiUnpitched.textContent ?? '', 10);
+      if (currentValue !== expectedMidiUnpitched) {
+        midiUnpitched.textContent = String(expectedMidiUnpitched);
+        changed = true;
+      }
+    });
+  });
+
+  if (!changed) {
+    return { data: xmlText, changed: false };
+  }
+
+  const scoreStart = xmlText.search(/<score-(partwise|timewise)\b/i);
+  const xmlPrefix = scoreStart > 0 ? xmlText.slice(0, scoreStart) : '';
+  const serialized = xmlSerializer.serializeToString(parsed);
+  return {
+    data: `${xmlPrefix}${serialized}`,
+    changed: true
+  };
+}
+
+function normalizeMusicXmlBytes(data) {
+  try {
+    const xmlText = textDecoder.decode(data);
+    if (!looksLikeMusicXml(xmlText)) {
+      return { data, changed: false };
+    }
+
+    const normalized = normalizeMusicXmlText(xmlText);
+    if (!normalized.changed) {
+      return { data, changed: false };
+    }
+
+    return {
+      data: textEncoder.encode(normalized.data),
+      changed: true
+    };
+  } catch {
+    return { data, changed: false };
+  }
+}
+
+function isMusicXmlFileName(fileName) {
+  return /\.(musicxml|xml)(\?.*)?$/i.test(fileName);
+}
+
+async function prepareScoreData(data, sourceName = '') {
+  if (typeof data === 'string') {
+    if (!isMusicXmlFileName(data)) {
+      return data;
+    }
+
+    const response = await fetch(data);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch score: ${response.status} ${response.statusText}`);
+    }
+
+    const xmlText = await response.text();
+    const normalized = normalizeMusicXmlText(xmlText);
+    return textEncoder.encode(normalized.data);
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return normalizeMusicXmlBytes(new Uint8Array(data)).data;
+  }
+
+  if (data instanceof Uint8Array) {
+    return normalizeMusicXmlBytes(data).data;
+  }
+
+  if (sourceName && isMusicXmlFileName(sourceName)) {
+    return normalizeMusicXmlBytes(new Uint8Array(data)).data;
+  }
+
+  return data;
 }
 
 function subscribeAlphaTabEvent(eventSource, handler) {
@@ -196,16 +402,26 @@ if (api) {
   subscribeAlphaTabEvent(api.renderFinished, () => {
     hideLoadingOverlay();
     updatePlaybackAvailability();
+    requestAnimationFrame(syncScoreBackgroundHeight);
   });
 }
 
 // Load a score from URL or ArrayBuffer
-function loadScore(data) {
+async function loadScore(data, sourceName = '') {
   loadingOverlay.classList.remove('hidden');
   loadingText.innerText = "Loading Score...";
   btnPlayPause.disabled = true;
-  if (api) {
-    api.load(data);
+  if (!api) {
+    return;
+  }
+
+  try {
+    const preparedData = await prepareScoreData(data, sourceName);
+    api.load(preparedData);
+  } catch (err) {
+    console.error('Score loading error:', err);
+    loadingText.innerText = 'Error loading score: ' + (err.message || err);
+    loadingOverlay.classList.remove('hidden');
   }
 }
 
@@ -306,13 +522,14 @@ function applyZoom() {
     api.settings.display.scale = currentZoom;
     api.updateSettings();
     api.render();
+    requestAnimationFrame(syncScoreBackgroundHeight);
   }
 }
 
 // Built-in Score Selector
 scoreSelect.addEventListener('change', () => {
   const url = scoreSelect.value;
-  loadScore(url);
+  loadScore(url, url);
 });
 
 // Custom File Upload
@@ -324,7 +541,7 @@ fileInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     const arrayBuffer = event.target.result;
     scoreTitleDisplay.innerText = file.name.replace(/\.[^/.]+$/, "");
-    loadScore(arrayBuffer);
+    loadScore(arrayBuffer, file.name);
   };
   reader.readAsArrayBuffer(file);
 });
@@ -355,7 +572,7 @@ dropArea.addEventListener('drop', (e) => {
   reader.onload = (event) => {
     const arrayBuffer = event.target.result;
     scoreTitleDisplay.innerText = file.name.replace(/\.[^/.]+$/, "");
-    loadScore(arrayBuffer);
+    loadScore(arrayBuffer, file.name);
   };
   reader.readAsArrayBuffer(file);
 });
@@ -385,4 +602,12 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+window.addEventListener('resize', () => {
+  requestAnimationFrame(syncScoreBackgroundHeight);
+});
+
 updatePlaybackAvailability();
+
+if (!isFileProtocol) {
+  loadScore(scoreSelect.value, scoreSelect.value);
+}
