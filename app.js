@@ -56,7 +56,10 @@ const settings = {
   display: {
     staveProfile: 'Score', // standard music score clef (no guitar tabs)
     scale: 1.0,
-    layoutMode: 'Page'
+    layoutMode: 'Page',
+    resources: {
+      secondaryGlyphColor: '#000000'
+    }
   },
   player: {
     enablePlayer: true,
