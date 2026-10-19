@@ -1,4 +1,4 @@
-# 🥁 DrumScore — Interactive Drum Practice Player
+# 🥁 Tumtumpa — Interactive Drum Practice Player
 
 An interactive web application designed for learning drums using **MusicXML** files. It renders full drum score sheets with real-time cursor tracking, General MIDI drum playback via Web Audio / SoundFont, dynamic tempo scaling, practice looping, and auto-scrolling.
 
