@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Serve drum trainer",
+			"type": "shell",
+			"command": "C:\\Program Files\\Python311\\python.exe",
+			"args": [
+				"serve.py"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

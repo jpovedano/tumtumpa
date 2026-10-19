@@ -22,6 +22,7 @@ const btnMetronome = document.getElementById('btnMetronome');
 const btnLoop = document.getElementById('btnLoop');
 const speedSlider = document.getElementById('speedSlider');
 const tempoDisplay = document.getElementById('tempoDisplay');
+const bpmInput = document.getElementById('bpmInput');
 const presetBtns = document.querySelectorAll('.btn-preset');
 const btnZoomIn = document.getElementById('btnZoomIn');
 const btnZoomOut = document.getElementById('btnZoomOut');
@@ -100,11 +101,24 @@ function updateTempoUI() {
   const effectiveBpm = Math.round(baseBpm * currentSpeed);
   tempoDisplay.innerText = `${Math.round(currentSpeed * 100)}% · ${effectiveBpm} BPM`;
   speedSlider.value = currentSpeed;
+  bpmInput.min = Math.ceil(baseBpm * Number(speedSlider.min));
+  bpmInput.max = Math.floor(baseBpm * Number(speedSlider.max));
+  bpmInput.value = effectiveBpm;
+  bpmInput.setCustomValidity('');
+  bpmInput.title = `Enter a whole-number tempo from ${bpmInput.min} to ${bpmInput.max} BPM`;
   
   presetBtns.forEach(btn => {
     const val = parseFloat(btn.dataset.speed);
     btn.classList.toggle('active', Math.abs(val - currentSpeed) < 0.01);
   });
+}
+
+function setPlaybackSpeed(speed) {
+  currentSpeed = Math.min(Number(speedSlider.max), Math.max(Number(speedSlider.min), speed));
+  if (api) {
+    api.playbackSpeed = currentSpeed;
+  }
+  updateTempoUI();
 }
 
 function updatePlaybackAvailability() {
@@ -451,21 +465,35 @@ btnStop.addEventListener('click', () => {
 
 // Speed Slider
 speedSlider.addEventListener('input', (e) => {
-  currentSpeed = parseFloat(e.target.value);
-  if (api) {
-    api.playbackSpeed = currentSpeed;
+  setPlaybackSpeed(Number(e.target.value));
+});
+
+bpmInput.addEventListener('input', () => {
+  bpmInput.setCustomValidity('');
+});
+
+bpmInput.addEventListener('change', () => {
+  if (!bpmInput.checkValidity()) {
+    bpmInput.reportValidity();
+    return;
   }
-  updateTempoUI();
+  setPlaybackSpeed(bpmInput.valueAsNumber / baseBpm);
+});
+
+bpmInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    bpmInput.dispatchEvent(new Event('change'));
+  } else if (e.key === 'Escape') {
+    updateTempoUI();
+    bpmInput.blur();
+  }
 });
 
 // Preset Buttons (50%, 75%, 100%, 125%)
 presetBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    currentSpeed = parseFloat(btn.dataset.speed);
-    if (api) {
-      api.playbackSpeed = currentSpeed;
-    }
-    updateTempoUI();
+    setPlaybackSpeed(Number(btn.dataset.speed));
   });
 });
 
@@ -582,6 +610,10 @@ dropArea.addEventListener('drop', (e) => {
 
 // Keyboard Shortcuts
 window.addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLElement && (e.target.matches('input, textarea, select') || e.target.isContentEditable)) {
+    return;
+  }
+
   // Prevent spacebar page scrolling
   if (e.code === 'Space' && e.target === document.body) {
     e.preventDefault();
@@ -594,14 +626,10 @@ window.addEventListener('keydown', (e) => {
     btnLoop.click();
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
-    currentSpeed = Math.min(1.6, currentSpeed + 0.05);
-    if (api) api.playbackSpeed = currentSpeed;
-    updateTempoUI();
+    setPlaybackSpeed(currentSpeed + 0.01);
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    currentSpeed = Math.max(0.4, currentSpeed - 0.05);
-    if (api) api.playbackSpeed = currentSpeed;
-    updateTempoUI();
+    setPlaybackSpeed(currentSpeed - 0.01);
   }
 });
 
@@ -609,6 +637,7 @@ window.addEventListener('resize', () => {
   requestAnimationFrame(syncScoreBackgroundHeight);
 });
 
+updateTempoUI();
 updatePlaybackAvailability();
 
 if (!isFileProtocol) {

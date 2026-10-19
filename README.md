@@ -10,6 +10,8 @@ An interactive web application designed for learning drums using **MusicXML** fi
 - **🔊 Realistic MIDI Drum Playback:** Built-in General MIDI SoundFont synthesizer (Channel 10 percussion mapping) directly in the browser via Web Audio API.
 - **⚡ Dynamic Tempo & Speed Control:**
   - Adjust playback speed from **40% to 160%** with smooth audio playback.
+  - Wider, fine-grained slider with **0.1%** steps for precise adjustment.
+  - Type an exact whole-number **BPM** and press **Enter** or leave the field to apply it. The allowed range follows the score's tempo (40–160%); invalid entries show a validation message. Press **Esc** in the field to cancel an edit.
   - Quick-preset buttons: **50%**, **75%**, **100%**, **125%**.
   - Real-time BPM calculation.
 - **📜 Synchronized Auto-Scroll & Cursor:** Follows playback bar-by-bar, automatically scrolling the viewport so you never lose your place while drumming.
@@ -52,8 +54,8 @@ This will automatically launch `http://localhost:8080` in your default web brows
 | `Esc` | Stop and rewind to measure 1 |
 | `M` | Toggle Metronome (Click track) |
 | `L` | Toggle Loop Mode |
-| `↑` | Increase tempo (+5%) |
-| `↓` | Decrease tempo (-5%) |
+| `↑` | Increase tempo (+1%) |
+| `↓` | Decrease tempo (-1%) |
 
 ---
 

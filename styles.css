@@ -361,6 +361,7 @@ select.score-dropdown:focus {
 /* Tempo Slider Section */
 .tempo-section {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   background: var(--bg-card);
@@ -370,16 +371,46 @@ select.score-dropdown:focus {
 }
 
 .tempo-label {
+  flex: 0 0 16ch;
   font-size: 0.85rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--accent-cyan);
-  min-width: 90px;
+  white-space: nowrap;
 }
 
 .tempo-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.bpm-input {
+  width: 76px;
+  padding: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font: inherit;
+}
+
+.bpm-input:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.bpm-input:invalid {
+  border-color: var(--accent-orange);
 }
 
 input[type="range"] {
@@ -392,7 +423,7 @@ input[type="range"] {
 }
 
 .speed-slider {
-  width: 110px;
+  width: 180px;
 }
 
 .preset-btns {
@@ -515,6 +546,10 @@ input[type="range"] {
 
   .speed-slider {
     flex: 1;
+  }
+
+  .tempo-controls {
+    width: 100%;
   }
 
   .shortcuts-hint {
