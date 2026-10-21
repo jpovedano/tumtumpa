@@ -27,6 +27,7 @@
     <div class="score-selection">
       <select id="scoreSelect" class="score-dropdown" title="Choose drum exercise or groove">
         <option value="./scores/rythms-semiquavers.musicxml">Rhythms with Semiquavers</option>
+        <option value="./scores/rythms-semiquavers-americano.musicxml">Rhythms with Semiquavers (Americano)</option>
         <option value="./scores/basic-rock-beat.musicxml">Basic 4/4 Rock Beat (110 BPM)</option>
         <option value="./scores/four-on-the-floor.musicxml">Four-on-the-Floor Disco (124 BPM)</option>
         <option value="./scores/paradiddle-exercise.musicxml">Paradiddle Rudiments (95 BPM)</option>
@@ -84,6 +85,9 @@
         </button>
         <button id="btnMetronome" class="toggle-btn" title="Toggle Click Track / Metronome (M)">
           <span>⏱ Metronome</span>
+        </button>
+        <button id="btnDrumMute" class="toggle-btn" type="button" title="Mute percussion tracks in the loaded score" aria-pressed="false" disabled>
+          <span id="drumMuteLabel">🥁 Mute Drums</span>
         </button>
         <button id="btnLoop" class="toggle-btn active" title="Loop current score or selection (L)">
           <span>🔁 Loop</span>
