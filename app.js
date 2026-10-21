@@ -19,6 +19,8 @@ const playIcon = document.getElementById('playIcon');
 const btnStop = document.getElementById('btnStop');
 const btnCountIn = document.getElementById('btnCountIn');
 const btnMetronome = document.getElementById('btnMetronome');
+const btnDrumMute = document.getElementById('btnDrumMute');
+const drumMuteLabel = document.getElementById('drumMuteLabel');
 const btnLoop = document.getElementById('btnLoop');
 const speedSlider = document.getElementById('speedSlider');
 const tempoDisplay = document.getElementById('tempoDisplay');
@@ -39,6 +41,8 @@ let baseBpm = 110;
 let currentSpeed = 1.0;
 let isCountIn = false;
 let isMetronome = false;
+let drumTracks = [];
+let areDrumsMuted = false;
 let isLoop = true;
 let currentZoom = 1.0;
 
@@ -401,6 +405,16 @@ if (api) {
     hideLoadingOverlay();
     updatePlaybackAvailability();
     scoreTitleDisplay.innerText = score.title || "Drum Groove";
+    drumTracks = score.tracks.filter(track => track.isPercussion);
+    areDrumsMuted = false;
+    if (drumTracks.length) {
+      api.changeTrackMute(drumTracks, false);
+    }
+    btnDrumMute.disabled = drumTracks.length === 0;
+    btnDrumMute.title = drumTracks.length ? 'Mute percussion tracks in the loaded score' : 'No percussion tracks in the loaded score';
+    btnDrumMute.classList.remove('active');
+    btnDrumMute.setAttribute('aria-pressed', 'false');
+    drumMuteLabel.innerText = '🥁 Mute Drums';
     
     // Read tempo
     if (score.tempo && score.tempo > 0) {
@@ -504,6 +518,20 @@ btnMetronome.addEventListener('click', () => {
   if (api) {
     api.metronomeVolume = isMetronome ? 0.9 : 0.0;
   }
+});
+
+// Drum Track Mute Toggle
+btnDrumMute.addEventListener('click', () => {
+  if (!api || drumTracks.length === 0) {
+    return;
+  }
+
+  areDrumsMuted = !areDrumsMuted;
+  api.changeTrackMute(drumTracks, areDrumsMuted);
+  btnDrumMute.classList.toggle('active', areDrumsMuted);
+  btnDrumMute.setAttribute('aria-pressed', String(areDrumsMuted));
+  drumMuteLabel.innerText = areDrumsMuted ? '🔇 Unmute Drums' : '🥁 Mute Drums';
+  btnDrumMute.title = areDrumsMuted ? 'Unmute percussion tracks in the loaded score' : 'Mute percussion tracks in the loaded score';
 });
 
 // Count-In Toggle
